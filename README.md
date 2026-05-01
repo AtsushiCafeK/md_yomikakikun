@@ -5,6 +5,10 @@ Python 3.12 / PyQt6 製の Markdown エディタです。
 
 ---
 
+アプリのスナップショット
+![alt](https://github.com/AtsushiCafeK/md_yomikakikun/blob/main/shapshot.png?raw=true)
+
+
 ## 機能一覧
 
 ### エディタ
