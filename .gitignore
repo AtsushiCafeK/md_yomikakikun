@@ -220,4 +220,5 @@ __marimo__/
 .streamlit/secrets.toml
 
 # original
-build.bat
+build.
+tests/
