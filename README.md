@@ -168,3 +168,7 @@ build.bat
 
 `dist\md_yomikakikun.exe` に単一ファイルの exe が生成されます（約 200MB）。  
 初回起動時は一時フォルダへの展開があるため数秒かかります。
+
+## beta版exeダウンロード
+[https://github.com/AtsushiCafeK/md_yomikakikun/releases/tag/beta 
+](https://github.com/AtsushiCafeK/md_yomikakikun/releases/tag/beta)
