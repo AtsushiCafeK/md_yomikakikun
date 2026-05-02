@@ -24,6 +24,7 @@ _TASK_RE = re.compile(r"^(\s*[-*+]\s)\[[ xX]\]\s")
 class MarkdownEditor(QPlainTextEdit):
     file_path_changed   = pyqtSignal(str)
     file_open_requested = pyqtSignal(str)   # emitted when .md file is dropped
+    scroll_ratio_changed = pyqtSignal(float) # 0.0〜1.0 のスクロール比率
 
     def __init__(self, settings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -35,6 +36,13 @@ class MarkdownEditor(QPlainTextEdit):
         self._highlighter = MarkdownHighlighter(self.document())
         self.setAcceptDrops(True)
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.verticalScrollBar().valueChanged.connect(self._emit_scroll_ratio)
+
+    def _emit_scroll_ratio(self, value: int) -> None:
+        sb = self.verticalScrollBar()
+        maximum = sb.maximum()
+        ratio = value / maximum if maximum > 0 else 0.0
+        self.scroll_ratio_changed.emit(ratio)
 
     # ------------------------------------------------------------------
     # Public API

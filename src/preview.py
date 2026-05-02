@@ -49,6 +49,18 @@ class PreviewWidget(QWebEngineView):
         if self._restore_y > 0:
             self.page().runJavaScript(f"window.scrollTo(0, {self._restore_y})")
 
+    def apply_scroll_ratio(self, ratio: float) -> None:
+        """エディタのスクロール比率に合わせてプレビューをスクロールする。"""
+        js = (
+            f"(function(){{"
+            f"  var r = {ratio};"
+            f"  var max = document.documentElement.scrollHeight"
+            f"          - document.documentElement.clientHeight;"
+            f"  window.scrollTo(0, r * max);"
+            f"}})();"
+        )
+        self.page().runJavaScript(js)
+
     def export_pdf(self, output_path: str) -> None:
         self.page().printToPdf(output_path)
 

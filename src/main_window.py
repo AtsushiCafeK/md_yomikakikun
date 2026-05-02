@@ -42,6 +42,7 @@ class MainWindow(QMainWindow):
         self._dark_mode = False
         self._preview_visible = True
         self._sidebar_visible = True
+        self._sync_scroll = self._settings.get("sync_scroll", False)
 
         # Status bar must be created before _setup_ui so that _update_status()
         # can safely be called from signal handlers triggered during widget init.
@@ -157,6 +158,13 @@ class MainWindow(QMainWindow):
         self._add_action(view_menu, "サイドバー表示切替",
                          self._toggle_sidebar,
                          sc.get("toggle_sidebar", "Ctrl+Shift+E"))
+        # スクロール同期トグル（チェックマーク付き）
+        self._sync_scroll_action = QAction("スクロール同期", self)
+        self._sync_scroll_action.setCheckable(True)
+        self._sync_scroll_action.setChecked(self._sync_scroll)
+        self._sync_scroll_action.triggered.connect(self._toggle_sync_scroll)
+        view_menu.addAction(self._sync_scroll_action)
+
         view_menu.addSeparator()
         self._add_action(view_menu, "ダークモード切替", self._toggle_dark, None)
 
@@ -291,6 +299,7 @@ class MainWindow(QMainWindow):
             editor.textChanged.connect(self._on_text_changed)
             editor.cursorPositionChanged.connect(self._update_status)
             editor.file_open_requested.connect(self._open_file)
+            editor.scroll_ratio_changed.connect(self._on_editor_scroll)
             if editor.file_path:
                 self._preview.set_base_dir(
                     os.path.dirname(editor.file_path)
@@ -300,6 +309,14 @@ class MainWindow(QMainWindow):
                 )
         self._update_preview()
         self._update_status()
+
+    def _on_editor_scroll(self, ratio: float) -> None:
+        if self._sync_scroll:
+            self._preview.apply_scroll_ratio(ratio)
+
+    def _toggle_sync_scroll(self) -> None:
+        self._sync_scroll = self._sync_scroll_action.isChecked()
+        self._settings.set("sync_scroll", self._sync_scroll)
 
     def _on_text_changed(self) -> None:
         self._preview_timer.start(300)

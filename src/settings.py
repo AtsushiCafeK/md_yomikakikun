@@ -10,6 +10,7 @@ DEFAULTS: dict = {
     "font_size": 14,
     "auto_save": True,
     "auto_save_interval": 2000,  # ms of inactivity before save
+    "sync_scroll": False,
     "last_directory": str(Path.home()),
     "recent_files": [],
     "shortcuts": {
