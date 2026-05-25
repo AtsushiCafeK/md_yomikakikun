@@ -18,7 +18,7 @@ from .preview import PreviewWidget
 from .file_browser import FileBrowser
 from .toolbar import MarkdownToolBar
 from .search_dialog import SearchDialog
-from .renderer import render_html
+from .renderer import render_html, render_content
 from . import exporter
 
 
@@ -43,6 +43,8 @@ class MainWindow(QMainWindow):
         self._preview_visible = True
         self._sidebar_visible = True
         self._sync_scroll = self._settings.get("sync_scroll", False)
+        self._word_wrap = self._settings.get("word_wrap", True)
+        self._toc_visible = self._settings.get("toc_visible", True)
 
         # Status bar must be created before _setup_ui so that _update_status()
         # can safely be called from signal handlers triggered during widget init.
@@ -103,7 +105,7 @@ class MainWindow(QMainWindow):
         # Preview update timer (debounce)
         self._preview_timer = QTimer(self)
         self._preview_timer.setSingleShot(True)
-        self._preview_timer.timeout.connect(self._update_preview)
+        self._preview_timer.timeout.connect(self._update_preview_incremental)
 
         # Open one blank tab to start
         self._tabs.new_tab()
@@ -164,6 +166,20 @@ class MainWindow(QMainWindow):
         self._sync_scroll_action.setChecked(self._sync_scroll)
         self._sync_scroll_action.triggered.connect(self._toggle_sync_scroll)
         view_menu.addAction(self._sync_scroll_action)
+
+        # ワードラップトグル（チェックマーク付き）
+        self._word_wrap_action = QAction("ワードラップ", self)
+        self._word_wrap_action.setCheckable(True)
+        self._word_wrap_action.setChecked(self._word_wrap)
+        self._word_wrap_action.triggered.connect(self._toggle_word_wrap)
+        view_menu.addAction(self._word_wrap_action)
+
+        # 目次トグル（チェックマーク付き）
+        self._toc_action = QAction("目次", self)
+        self._toc_action.setCheckable(True)
+        self._toc_action.setChecked(self._toc_visible)
+        self._toc_action.triggered.connect(self._toggle_toc)
+        view_menu.addAction(self._toc_action)
 
         view_menu.addSeparator()
         self._add_action(view_menu, "ダークモード切替", self._toggle_dark, None)
@@ -279,6 +295,7 @@ class MainWindow(QMainWindow):
         else:
             app.setPalette(QPalette())
         self._tabs.set_dark(dark)
+        self._preview.set_dark(dark)
         self._update_preview()
         self._update_status()
 
@@ -318,6 +335,25 @@ class MainWindow(QMainWindow):
         self._sync_scroll = self._sync_scroll_action.isChecked()
         self._settings.set("sync_scroll", self._sync_scroll)
 
+    def _toggle_toc(self) -> None:
+        self._toc_visible = self._toc_action.isChecked()
+        self._settings.set("toc_visible", self._toc_visible)
+        self._update_preview()
+
+    def _toggle_word_wrap(self) -> None:
+        self._word_wrap = self._word_wrap_action.isChecked()
+        self._settings.set("word_wrap", self._word_wrap)
+        self._apply_word_wrap()
+
+    def _apply_word_wrap(self) -> None:
+        from PyQt6.QtWidgets import QPlainTextEdit
+        mode = (QPlainTextEdit.LineWrapMode.WidgetWidth if self._word_wrap
+                else QPlainTextEdit.LineWrapMode.NoWrap)
+        for i in range(self._tabs.count()):
+            ed = self._tabs.editor_at(i)
+            if ed:
+                ed.setLineWrapMode(mode)
+
     def _on_text_changed(self) -> None:
         self._preview_timer.start(300)
         interval = self._settings.get("auto_save_interval", 2000)
@@ -325,12 +361,22 @@ class MainWindow(QMainWindow):
             self._save_timer.start(interval)
 
     def _update_preview(self) -> None:
+        """ページ全体を再レンダリング（テーマ切替・ファイル切替・TOC切替時）。"""
         if not self._preview_visible:
             return
         ed = self._ed()
         text = ed.toPlainText() if ed else ""
-        html = render_html(text, dark_mode=self._dark_mode)
+        html = render_html(text, dark_mode=self._dark_mode, show_toc=self._toc_visible)
         self._preview.render(html)
+
+    def _update_preview_incremental(self) -> None:
+        """本文のみJS差し替え（テキスト入力時 — ちらつきなし）。"""
+        if not self._preview_visible:
+            return
+        ed = self._ed()
+        text = ed.toPlainText() if ed else ""
+        content = render_content(text, dark_mode=self._dark_mode, show_toc=self._toc_visible)
+        self._preview.update_content(content)
 
     def _auto_save(self) -> None:
         ed = self._ed()
@@ -342,6 +388,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _new_file(self) -> None:
         self._tabs.new_tab()
+        self._apply_word_wrap()
 
     def _open_file_dialog(self) -> None:
         last = self._settings.get("last_directory", str(Path.home()))
@@ -358,6 +405,7 @@ class MainWindow(QMainWindow):
             self._tabs.setCurrentIndex(existing)
             return
         ed = self._tabs.new_tab(path)
+        self._apply_word_wrap()
         self._settings.set("last_directory", os.path.dirname(path))
         self._settings.add_recent(path)
         self._rebuild_recent_menu()

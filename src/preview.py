@@ -5,7 +5,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineSettings
 from PyQt6.QtCore import QUrl, pyqtSignal
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PyQt6.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 
 _MD_EXTS = {".md", ".markdown", ".txt"}
 
@@ -24,6 +24,11 @@ class PreviewWidget(QWebEngineView):
         self._restore_y: int = 0
         self.setAcceptDrops(True)
         self.loadFinished.connect(self._on_load_finished)
+
+    def set_dark(self, dark: bool) -> None:
+        """テーマに合わせてWebEngineの下地色を設定する（白フラッシュ防止）。"""
+        color = QColor("#1e1e1e") if dark else QColor("#ffffff")
+        self.page().setBackgroundColor(color)
 
     def set_base_dir(self, directory: str) -> None:
         self._base_dir = directory
@@ -48,6 +53,28 @@ class PreviewWidget(QWebEngineView):
         """ページ読み込み完了後にスクロール位置を復元する。"""
         if self._restore_y > 0:
             self.page().runJavaScript(f"window.scrollTo(0, {self._restore_y})")
+
+    def update_content(self, content_html: str) -> None:
+        """ページリロードなしで本文のみをJS差し替えする（ちらつき防止）。"""
+        import json
+        escaped = json.dumps(content_html)
+        js = f"""
+(function() {{
+    var el = document.getElementById('md-content');
+    if (!el) return;
+    el.innerHTML = {escaped};
+    if (window.MathJax && MathJax.typesetPromise) {{
+        MathJax.typesetPromise([el]).catch(function(e) {{}});
+    }}
+    if (window.mermaid) {{
+        var nodes = el.querySelectorAll('.mermaid');
+        nodes.forEach(function(n) {{ n.removeAttribute('data-processed'); }});
+        try {{ mermaid.run({{ nodes: nodes }}); }}
+        catch(e) {{ try {{ mermaid.init(undefined, nodes); }} catch(e2) {{}} }}
+    }}
+}})();
+"""
+        self.page().runJavaScript(js)
 
     def apply_scroll_ratio(self, ratio: float) -> None:
         """エディタのスクロール比率に合わせてプレビューをスクロールする。"""

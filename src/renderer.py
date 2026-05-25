@@ -89,9 +89,11 @@ MathJax = {{
 <script>document.addEventListener('DOMContentLoaded',()=>mermaid.initialize({{startOnLoad:true,theme:'{mermaid_theme}'}}));</script>
 </head>
 <body>
+<div id="md-content">
 {frontmatter_html}
 {toc_html}
 {body_html}
+</div>
 </body>
 </html>
 """
@@ -122,19 +124,14 @@ def _mermaid_fence(source, language, class_name, options, md, **kwargs):  # noqa
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Internal helpers
 # ---------------------------------------------------------------------------
-def render_html(text: str, dark_mode: bool = False) -> str:
-    meta, content = extract_frontmatter(text)
-
-    pygments_style = "monokai" if dark_mode else "friendly"
-    pygments_css = HtmlFormatter(style=pygments_style).get_style_defs(".highlight")
-
+def _build_extensions() -> list:
     extensions = [
         "tables",
         "fenced_code",
         CodeHiliteExtension(css_class="highlight", guess_lang=False),
-        TocExtension(permalink=True, toc_depth="1-3"),
+        TocExtension(permalink=False, toc_depth="1-3"),
         "nl2br",
         "attr_list",
         "footnotes",
@@ -143,16 +140,9 @@ def render_html(text: str, dark_mode: bool = False) -> str:
         "admonition",
         "sane_lists",
     ]
-
-    # pymdownx extensions (optional – fall back gracefully)
     try:
         import pymdownx.superfences  # noqa: F401
-        extensions += [
-            "pymdownx.tasklist",
-            "pymdownx.tilde",
-        ]
-        # superfences with Mermaid support
-        from markdown import Extension as MdExt
+        extensions += ["pymdownx.tasklist", "pymdownx.tilde"]
         extensions.append(
             __import__(
                 "pymdownx.superfences",
@@ -166,12 +156,16 @@ def render_html(text: str, dark_mode: bool = False) -> str:
         extensions.remove("fenced_code")
     except Exception:
         pass
+    return extensions
 
-    md_proc = markdown.Markdown(extensions=extensions)
+
+def _process_markdown(text: str, dark_mode: bool, show_toc: bool) -> tuple[str, str, str]:
+    """Markdown を処理して (fm_html, toc_html, body_html) を返す。"""
+    meta, content = extract_frontmatter(text)
+    md_proc = markdown.Markdown(extensions=_build_extensions())
     body = md_proc.convert(content)
     toc: str = getattr(md_proc, "toc", "")
 
-    # Front matter table
     fm_html = ""
     if meta:
         rows = "".join(
@@ -180,17 +174,33 @@ def render_html(text: str, dark_mode: bool = False) -> str:
         fm_html = f'<table class="frontmatter">{rows}</table>'
 
     toc_html = ""
-    if toc and toc.strip() not in ("", "<div class=\"toc\"></div>"):
+    if show_toc and toc and toc.strip() not in ("", '<div class="toc"></div>'):
         toc_html = f'<nav class="toc"><strong>目次</strong>{toc}</nav>'
 
+    return fm_html, toc_html, body
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+def render_html(text: str, dark_mode: bool = False, show_toc: bool = True) -> str:
+    """ページ全体のHTMLを返す（初回表示・テーマ切替時に使用）。"""
+    fm_html, toc_html, body_html = _process_markdown(text, dark_mode, show_toc)
+    pygments_style = "monokai" if dark_mode else "friendly"
+    pygments_css = HtmlFormatter(style=pygments_style).get_style_defs(".highlight")
     theme_css = _DARK_CSS if dark_mode else _LIGHT_CSS
     mermaid_theme = "dark" if dark_mode else "default"
-
     return _HTML_TEMPLATE.format(
         theme_css=theme_css,
         pygments_css=pygments_css,
         frontmatter_html=fm_html,
         toc_html=toc_html,
-        body_html=body,
+        body_html=body_html,
         mermaid_theme=mermaid_theme,
     )
+
+
+def render_content(text: str, dark_mode: bool = False, show_toc: bool = True) -> str:
+    """本文部分のHTMLのみを返す（テキスト変更時のJS差し替えに使用）。"""
+    fm_html, toc_html, body_html = _process_markdown(text, dark_mode, show_toc)
+    return fm_html + toc_html + body_html

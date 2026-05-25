@@ -11,6 +11,8 @@ DEFAULTS: dict = {
     "auto_save": True,
     "auto_save_interval": 2000,  # ms of inactivity before save
     "sync_scroll": False,
+    "word_wrap": True,
+    "toc_visible": True,
     "last_directory": str(Path.home()),
     "recent_files": [],
     "shortcuts": {
