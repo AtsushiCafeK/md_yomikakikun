@@ -1,7 +1,9 @@
 # MD読み書き君
 
+**v1.1.0**
+
 Python 3.12 / PyQt6 製の Markdown エディタです。  
-リアルタイムプレビュー・マルチタブ・シンタックスハイライトを備えた、ローカル完結型のデスクトップアプリです。
+リアルタイムプレビュー・マルチタブ・シンタックスハイライト・WordPress変換を備えた、ローカル完結型のデスクトップアプリです。
 
 ---
 
@@ -98,6 +100,29 @@ Python 3.12 / PyQt6 製の Markdown エディタです。
 - メニューから手動切り替え可
 - エディタ・プレビュー・UI すべてに適用
 
+### WordPress形式に変換
+- **ツール → WordPress形式に変換…**（Ctrl+Shift+W）で変換ダイアログを開く
+- 出力形式を2種類から選択：
+  - **Gutenberg（ブロックエディター）** — WordPress のコードエディターにそのまま貼り付け可能
+  - **HTML** — クラシックエディタや他 CMS 向けの素の HTML
+- 変換後は「クリップボードにコピー」ボタン一発でコピー
+- YAML front matter は自動除去
+
+**変換対応要素：**
+
+| Markdown | 出力（Gutenbergモード） |
+|---|---|
+| `#`〜`######` 見出し | `<!-- wp:heading -->` ブロック |
+| 段落 | `<!-- wp:paragraph -->` ブロック |
+| `- / * / +` 箇条書き | `<!-- wp:list -->` ブロック |
+| `1.` 番号付きリスト | `<!-- wp:list {"ordered":true} -->` ブロック |
+| `> 引用` | `<!-- wp:quote -->` ブロック |
+| ` ``` ` コードブロック | `<!-- wp:code -->` ブロック |
+| テーブル | `<!-- wp:table -->` ブロック |
+| `---` 水平線 | `<!-- wp:separator -->` ブロック |
+| `![]()` 単独画像行 | `<!-- wp:image -->` ブロック |
+| `**太字** / *斜体* / ~~打消し~~ / \`code\` / リンク | インライン HTML タグ |
+
 ---
 
 ## キーボードショートカット一覧
@@ -117,6 +142,7 @@ Python 3.12 / PyQt6 製の Markdown エディタです。
 | 検索 | Ctrl+F |
 | プレビュー表示切替 | Ctrl+Shift+P |
 | サイドバー表示切替 | Ctrl+Shift+E |
+| WordPress形式に変換 | Ctrl+Shift+W |
 | 設定 | Ctrl+, |
 | 終了 | Ctrl+Q |
 
@@ -188,6 +214,21 @@ build.bat
 `dist\md_yomikakikun.exe` に単一ファイルの exe が生成されます（約 200MB）。  
 初回起動時は一時フォルダへの展開があるため数秒かかります。
 
-## beta版exeダウンロード
-[https://github.com/AtsushiCafeK/md_yomikakikun/releases/tag/beta 
+## リリース履歴
+
+### v1.1.0
+- WordPress形式への変換機能追加（Gutenberg / HTML 出力）
+- プレビューのちらつき解消（テキスト入力時はページリロードなしで本文差し替え）
+- プレビューの白フラッシュ解消（ダークモード時の背景色を即時反映）
+- 目次パネルのON/OFF切り替えを追加（表示メニュー）
+- スクロール同期機能追加（エディタ↔プレビュー）
+- ワードラップのON/OFF切り替えを追加（表示メニュー）
+- ファイルを開いた際にタブが「無題」になっていたバグを修正
+- Enter キーでクラッシュしていたバグを修正
+
+### v1.0.0
+- 初回リリース
+
+## exeダウンロード
+[https://github.com/AtsushiCafeK/md_yomikakikun/releases/tag/beta
 ](https://github.com/AtsushiCafeK/md_yomikakikun/releases/tag/beta)

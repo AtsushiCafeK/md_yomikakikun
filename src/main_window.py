@@ -6,8 +6,9 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QSplitter, QStatusBar,
     QLabel, QMenuBar, QFileDialog, QMessageBox,
     QInputDialog, QApplication, QDialog, QVBoxLayout,
-    QFormLayout, QComboBox, QSpinBox, QLineEdit,
-    QDialogButtonBox, QCheckBox, QPushButton
+    QHBoxLayout, QFormLayout, QComboBox, QSpinBox, QLineEdit,
+    QDialogButtonBox, QCheckBox, QPushButton, QPlainTextEdit,
+    QButtonGroup, QRadioButton
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QMimeData
 from PyQt6.QtGui import QAction, QKeySequence, QPalette, QColor, QFont, QCloseEvent, QDragEnterEvent, QDropEvent
@@ -20,6 +21,7 @@ from .toolbar import MarkdownToolBar
 from .search_dialog import SearchDialog
 from .renderer import render_html, render_content
 from . import exporter
+from .wp_converter import convert_gutenberg, convert_html as convert_html_wp
 
 
 _MD_EXTS = {".md", ".markdown", ".txt"}
@@ -186,6 +188,9 @@ class MainWindow(QMainWindow):
 
         # --- Tools ---
         tools_menu = mb.addMenu("ツール(&T)")
+        self._add_action(tools_menu, "WordPress形式に変換…",
+                         self._show_wp_convert, "Ctrl+Shift+W")
+        tools_menu.addSeparator()
         self._add_action(tools_menu, "設定…", self._show_preferences, "Ctrl+,")
 
         # --- Help ---
@@ -592,6 +597,71 @@ class MainWindow(QMainWindow):
                 ed = self._tabs.editor_at(i)
                 if ed:
                     ed.refresh_font()
+
+    # ------------------------------------------------------------------
+    # WordPress converter dialog
+    # ------------------------------------------------------------------
+    def _show_wp_convert(self) -> None:
+        ed = self._ed()
+        if ed is None:
+            return
+        text = ed.toPlainText()
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("WordPress形式に変換")
+        dlg.resize(720, 560)
+        layout = QVBoxLayout(dlg)
+
+        # Description
+        desc = QLabel(
+            "変換結果をWordPressのコードエディター（右上「…」→「コードエディター」）に貼り付けてください。"
+        )
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        # Mode selector
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("出力形式:"))
+        rb_gutenberg = QRadioButton("Gutenberg（ブロックエディター）")
+        rb_html      = QRadioButton("HTML")
+        rb_gutenberg.setChecked(True)
+        mode_row.addWidget(rb_gutenberg)
+        mode_row.addWidget(rb_html)
+        mode_row.addStretch()
+        layout.addLayout(mode_row)
+
+        # Output area
+        output = QPlainTextEdit()
+        output.setReadOnly(True)
+        output.setFont(QFont("Consolas", 10))
+        layout.addWidget(output)
+
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_copy  = QPushButton("クリップボードにコピー")
+        btn_close = QPushButton("閉じる")
+        btn_row.addWidget(btn_copy)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_close)
+        layout.addLayout(btn_row)
+
+        def _refresh() -> None:
+            if rb_gutenberg.isChecked():
+                output.setPlainText(convert_gutenberg(text))
+            else:
+                output.setPlainText(convert_html_wp(text))
+            btn_copy.setText("クリップボードにコピー")
+
+        def _copy() -> None:
+            QApplication.clipboard().setText(output.toPlainText())
+            btn_copy.setText("コピーしました ✓")
+
+        rb_gutenberg.toggled.connect(_refresh)
+        btn_copy.clicked.connect(_copy)
+        btn_close.clicked.connect(dlg.close)
+
+        _refresh()
+        dlg.exec()
 
     # ------------------------------------------------------------------
     # Shortcuts info
