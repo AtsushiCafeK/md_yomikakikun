@@ -85,10 +85,11 @@ def _wp_quote(lines: list[str]) -> str:
     )
 
 def _wp_code(code: str, lang: str) -> str:
-    cls = f' class="language-{lang}"' if lang else ""
+    # WordPress コアの wp:code ブロックは <code> に属性を許可しないため
+    # class="language-xxx" を付けるとブロック検証エラーになる
     return (
         f"<!-- wp:code -->\n"
-        f'<pre class="wp-block-code"><code{cls}>{_esc(code)}</code></pre>\n'
+        f'<pre class="wp-block-code"><code>{_esc(code)}</code></pre>\n'
         f"<!-- /wp:code -->"
     )
 
